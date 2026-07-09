@@ -73,11 +73,20 @@ mailcacheApp.controller('MailCtrl', function ($scope, $http, $sce, $timeout) {
   $scope.selectedOutgoingSMTP = ""
   $scope.saveSMTPServer = false;
 
+  $scope.showDeleteAllModal = false;
+  $scope.previewTab = 'html';
+  $scope.previewTabs = [
+    { key: 'html', label: 'HTML' },
+    { key: 'plain', label: 'Plain text' },
+    { key: 'source', label: 'Source' },
+    { key: 'mime', label: 'MIME' }
+  ];
+
   $scope.getJim = function() {
     var url = $scope.host + 'api/v2/jim'
-    $http.get(url).success(function(data) {
-      $scope.jim = data
-    }).error(function() {
+    $http.get(url).then(function(response) {
+      $scope.jim = response.data
+    }).catch(function() {
       $scope.jim = null
     })
   }
@@ -85,13 +94,13 @@ mailcacheApp.controller('MailCtrl', function ($scope, $http, $sce, $timeout) {
 
   $scope.enableJim = function() {
     var url = $scope.host + 'api/v2/jim'
-    $http.post(url).success(function(data) {
+    $http.post(url).then(function(response) {
       $scope.getJim()
     })
   }
   $scope.disableJim = function() {
     var url = $scope.host + 'api/v2/jim'
-    $http.delete(url).success(function(data) {
+    $http.delete(url).then(function(response) {
       $scope.getJim()
     })
   }
@@ -280,7 +289,8 @@ mailcacheApp.controller('MailCtrl', function ($scope, $http, $sce, $timeout) {
     } else {
       url += "?limit=" + $scope.itemsPerPage;
     }
-    $http.get(url).success(function(data) {
+    $http.get(url).then(function(response) {
+      var data = response.data;
       $scope.messages = data.items;
       $scope.totalMessages = data.total;
       $scope.countMessages = data.count;
@@ -327,7 +337,8 @@ mailcacheApp.controller('MailCtrl', function ($scope, $http, $sce, $timeout) {
     if($scope.startIndex > 0) {
       url += "&start=" + $scope.startIndex;
     }
-    $http.get(url).success(function(data) {
+    $http.get(url).then(function(response) {
+      var data = response.data;
       $scope.searchMessages = data.items;
       $scope.totalSearchMessages = data.total;
       $scope.countSearchMessages = data.count;
@@ -345,11 +356,13 @@ mailcacheApp.controller('MailCtrl', function ($scope, $http, $sce, $timeout) {
     }, 0);
   	if($scope.cache[message.ID]) {
   		$scope.preview = $scope.cache[message.ID];
+      $scope.previewTab = $scope.hasHTML($scope.preview) ? 'html' : 'plain';
       //reflow();
   	} else {
   		$scope.preview = message;
       var e = $scope.startEvent("Loading message", message.ID, "glyphicon-download-alt");
-	  	$http.get($scope.host + 'api/v1/messages/' + message.ID).success(function(data) {
+	  	$http.get($scope.host + 'api/v1/messages/' + message.ID).then(function(response) {
+	  	  var data = response.data;
 	  	  $scope.cache[message.ID] = data;
 
         // FIXME
@@ -379,6 +392,7 @@ mailcacheApp.controller('MailCtrl', function ($scope, $http, $sce, $timeout) {
         }
 	      data.previewHTML = $sce.trustAsHtml(h);
   		  $scope.preview = data;
+        $scope.previewTab = $scope.hasHTML(data) ? 'html' : 'plain';
   		  preview = $scope.cache[message.ID];
         //reflow();
         e.done();
@@ -532,19 +546,25 @@ mailcacheApp.controller('MailCtrl', function ($scope, $http, $sce, $timeout) {
   };
 
   $scope.deleteAll = function() {
-  	$('#confirm-delete-all').modal('show');
+  	$scope.showDeleteAllModal = true;
+  }
+  $scope.cancelDeleteAll = function() {
+    $scope.showDeleteAllModal = false;
   }
 
   $scope.releaseOne = function(message) {
     $scope.releasing = message;
 
-    $http.get($scope.host + 'api/v2/outgoing-smtp').success(function(data) {
-      $scope.outgoingSMTP = data;
-      $('#release-one').modal('show');
+    $http.get($scope.host + 'api/v2/outgoing-smtp').then(function(response) {
+      $scope.outgoingSMTP = response.data;
+    }).catch(function() {
+      $scope.releasing = null;
     })
   }
+  $scope.cancelReleaseMessage = function() {
+    $scope.releasing = null;
+  }
   $scope.confirmReleaseMessage = function() {
-    $('#release-one').modal('hide');
     var message = $scope.releasing;
     $scope.releasing = null;
 
@@ -568,9 +588,9 @@ mailcacheApp.controller('MailCtrl', function ($scope, $http, $sce, $timeout) {
       }
     }
 
-    $http.post($scope.host + 'api/v1/messages/' + message.ID + '/release', authcfg).success(function() {
+    $http.post($scope.host + 'api/v1/messages/' + message.ID + '/release', authcfg).then(function() {
       e.done();
-    }).error(function(err) {
+    }).catch(function(err) {
       e.fail();
       e.error = err;
     });
@@ -587,9 +607,9 @@ mailcacheApp.controller('MailCtrl', function ($scope, $http, $sce, $timeout) {
   }
 
   $scope.deleteAllConfirm = function() {
-  	$('#confirm-delete-all').modal('hide');
+  	$scope.showDeleteAllModal = false;
     var e = $scope.startEvent("Deleting all messages", null, "glyphicon-remove-circle");
-  	$http.delete($scope.host + 'api/v1/messages').success(function() {
+  	$http.delete($scope.host + 'api/v1/messages').then(function() {
   		$scope.refresh();
   		$scope.preview = null;
       e.done()
@@ -598,7 +618,7 @@ mailcacheApp.controller('MailCtrl', function ($scope, $http, $sce, $timeout) {
 
   $scope.deleteOne = function(message) {
     var e = $scope.startEvent("Deleting message", message.ID, "glyphicon-remove");
-  	$http.delete($scope.host + 'api/v1/messages/' + message.ID).success(function() {
+  	$http.delete($scope.host + 'api/v1/messages/' + message.ID).then(function() {
   		if($scope.preview._id == message._id) $scope.preview = null;
   		$scope.refresh();
       e.done();

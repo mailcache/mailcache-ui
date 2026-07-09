@@ -1,0 +1,27 @@
+@import "tailwindcss";
+@source "../assets/templates";
+@source "../assets/js/controllers.js";
+
+@layer components {
+  .icon-btn {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-600 hover:bg-slate-50;
+  }
+  .nav-link {
+    @apply flex items-center gap-2 rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100;
+  }
+  .form-input {
+    @apply w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm;
+  }
+  .modal-backdrop {
+    @apply fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4;
+  }
+  .modal-panel {
+    @apply w-full max-w-md rounded-lg bg-white p-6 shadow-xl;
+  }
+  .btn-cancel {
+    @apply rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50;
+  }
+  .btn-danger {
+    @apply rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700;
+  }
+}
